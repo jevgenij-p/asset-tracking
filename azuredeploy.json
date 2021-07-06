@@ -14,8 +14,8 @@
         }
     },
     "variables": {
-        "linked-template-iot-hub": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.storage/storage-account-create/azuredeploy.json",
-        "linked-template-dps": "https://raw.githubusercontent.com/Azure/azure-docs-json-samples/master/azure-resource-manager/what-if/what-if-before.json"
+        "linked-template-iot-hub": "https://github.com/jevgenij-p/asset-tracking/blob/master/iot-hub.json",
+        "linked-template-dps": "https://github.com/jevgenij-p/asset-tracking/blob/master/dps.json"
     },
     "resources": [
         {
