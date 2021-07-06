@@ -1,0 +1,28 @@
+az login
+
+$resourceGroupName="asset-tracking-rg"
+az group create --name $resourceGroupName --location "North Europe"
+
+$templateFile="iothubdeploy.json"
+$today=Get-Date -Format "MM-dd-yyyy"
+$deploymentName="addiothub-"+"$today"
+
+$hubname="asset-tracking-hub"
+$sku_name="S1"
+
+az deployment group create `
+    --name $deploymentName `
+    --resource-group $resourceGroupName `
+    --template-file $templateFile `
+    --parameters hubname=$hubname sku_name=$sku_name
+
+$templateFile="dpsdeploy.json"
+$today=Get-Date -Format "MM-dd-yyyy"
+$deploymentName="adddps-"+"$today"
+$name="asset-tracking-dps"
+
+az deployment group create `
+    --name $deploymentName `
+    --resource-group $resourceGroupName `
+    --template-file $templateFile `
+    --parameters name=$name
