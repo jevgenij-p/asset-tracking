@@ -3,7 +3,7 @@ az login
 $resourceGroupName="asset-tracking-rg"
 az group create --name $resourceGroupName --location "North Europe"
 
-$templateFile="iothubdeploy.json"
+$templateFile="azuredeploy.json"
 $today=Get-Date -Format "MM-dd-yyyy"
 $deploymentName="addiothub-"+"$today"
 
