@@ -7,22 +7,12 @@ $templateFile="iothubdeploy.json"
 $today=Get-Date -Format "MM-dd-yyyy"
 $deploymentName="addiothub-"+"$today"
 
-$hubname="asset-tracking-hub"
-$sku_name="S1"
+$hubName="asset-tracking-hub"
+$dpsName="asset-tracking-dps"
+$skuName="S1"
 
 az deployment group create `
     --name $deploymentName `
     --resource-group $resourceGroupName `
     --template-file $templateFile `
-    --parameters hubname=$hubname sku_name=$sku_name
-
-$templateFile="dpsdeploy.json"
-$today=Get-Date -Format "MM-dd-yyyy"
-$deploymentName="adddps-"+"$today"
-$name="asset-tracking-dps"
-
-az deployment group create `
-    --name $deploymentName `
-    --resource-group $resourceGroupName `
-    --template-file $templateFile `
-    --parameters name=$name
+    --parameters hub_name=$hubName sku_name=$skuName dps_name=$dpsName
