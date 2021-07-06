@@ -1,0 +1,68 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "hub_name": {
+            "type": "string"
+        },
+        "sku_name": {
+            "type": "string",
+            "defaultValue": "S1"
+        },
+        "sku_units": {
+            "type": "string",
+            "defaultValue": "1"
+        },
+        "d2c_partitions": {
+            "type": "string",
+            "defaultValue": "4"
+        },
+        "features": {
+            "type": "string",
+            "defaultValue": "None"
+        },
+        "tags": {
+            "type": "object",
+            "defaultValue": {}
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2021-03-31",
+            "type": "Microsoft.Devices/IotHubs",
+            "name": "[parameters('hub_name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "eventHubEndpoints": {
+                    "events": {
+                        "retentionTimeInDays": 1,
+                        "partitionCount": "[parameters('d2c_partitions')]"
+                    }
+                },
+                "features": "[parameters('features')]"
+            },
+            "sku": {
+                "name": "[parameters('sku_name')]",
+                "capacity": "[parameters('sku_units')]"
+            },
+            "tags": "[parameters('tags')]"
+        },
+        {
+            "type": "Microsoft.Security/IoTSecuritySolutions",
+            "apiVersion": "2019-08-01",
+            "name": "[parameters('hub_name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "status": "Enabled",
+                "unmaskedIpLoggingStatus": "Enabled",
+                "displayName": "[parameters('hub_name')]",
+                "iotHubs": [
+                    "[resourceId('Microsoft.Devices/IotHubs', parameters('hub_name'))]"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Devices/IotHubs', parameters('hub_name'))]"
+            ]
+        }
+    ]
+}
