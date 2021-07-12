@@ -5,19 +5,16 @@
         "dpsname": {
             "type": "String"
         },
-        "iotHubId": {
+        "connectionString": {
             "type": "string"
         },
-        "iotHubKeysId": {
+        "hostName": {
             "type": "string"
         },
         "tags": {
             "type": "Object",
             "defaultValue": {}
         }
-    },
-    "variables": {
-        "iotHubKeyName": "iothubowner"
     },
     "resources": [
         {
@@ -31,7 +28,15 @@
                 "tier": "Standard",
                 "capacity": 1
             },
-            "properties": {}
+            "properties": {
+                "iotHubs": [
+                    {
+                        "connectionString": "[parameters('connectionString')]",
+                        "name": "[parameters('hostName')]",
+                        "location": "[resourceGroup().location]"
+                    }
+                ]
+            }
         }
     ]
 }
