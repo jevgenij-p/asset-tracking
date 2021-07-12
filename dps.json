@@ -5,10 +5,16 @@
         "dpsname": {
             "type": "String"
         },
+        "hubname": {
+            "type": "string"
+        },
         "tags": {
             "type": "Object",
             "defaultValue": {}
         }
+    },
+    "variables": {
+        "iotHubKeyName": "iothubowner"
     },
     "resources": [
         {
@@ -22,7 +28,15 @@
                 "tier": "Standard",
                 "capacity": 1
             },
-            "properties": {}
+            "properties": {
+                "iotHubs": [
+                    {
+                        "connectionString": "[concat('HostName=', reference(resourceId('Microsoft.Devices/Iothubs', parameters('hubname'))).hostName, ';SharedAccessKeyName=', variables('iotHubKeyName'), ';SharedAccessKey=', listkeys(resourceId('Microsoft.Devices/Iothubs/Iothubkeys', parameters('hub_name'), variables('iotHubKeyName')), '2020-03-01').primaryKey)]",
+                        "location": "[resourceGroup().location]",
+                        "name": "[reference(resourceId('Microsoft.Devices/Iothubs', parameters('hubname'))).hostName]"
+                    }
+                ]
+            }
         }
     ]
 }

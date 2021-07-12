@@ -15,8 +15,7 @@
     },
     "variables": {
         "linked-template-iot-hub": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/iot-hub.json",
-        "linked-template-dps": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/dps.json",
-        "iotHubKeyName": "iothubowner"
+        "linked-template-dps": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/dps.json"
     },
     "resources": [
         {
@@ -49,7 +48,8 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "dpsname": { "value": "[parameters('dps_name')]" }
+                    "dpsname": { "value": "[parameters('dps_name')]" },
+                    "hubname": { "value": "[parameters('hub_name')]" }
                 }
             }
         }
