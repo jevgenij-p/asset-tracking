@@ -28,6 +28,7 @@
                 "tier": "Standard",
                 "capacity": 1
             },
+            "dependsOn": [ "[resourceId('Microsoft.Devices/IotHubs', parameters('hubname'))]" ],
             "properties": {
                 "iotHubs": [
                     {
