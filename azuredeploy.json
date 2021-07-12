@@ -15,7 +15,10 @@
     },
     "variables": {
         "linked-template-iot-hub": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/iot-hub.json",
-        "linked-template-dps": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/dps.json"
+        "linked-template-dps": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/dps.json",
+        "iotHubKeyName": "iothubowner",
+        "iotHubId": "[resourceId('Microsoft.Devices/Iothubs', parameters('hub_name'))]",
+        "iotHubKeysId": "[resourceId('Microsoft.Devices/Iothubs/Iothubkeys', parameters('hub_name'), variables('iotHubKeyName'))]"
     },
     "resources": [
         {
@@ -49,7 +52,8 @@
                 },
                 "parameters": {
                     "dpsname": { "value": "[parameters('dps_name')]" },
-                    "hubname": { "value": "[parameters('hub_name')]" }
+                    "iotHubId": { "value": "[variables('iotHubId')]" },
+                    "iotHubKeysId": { "value": "[variables('iotHubKeysId')]" }
                 }
             }
         }
