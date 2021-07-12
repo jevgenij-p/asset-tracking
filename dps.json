@@ -31,15 +31,7 @@
                 "tier": "Standard",
                 "capacity": 1
             },
-            "properties": {
-                "iotHubs": [
-                    {
-                        "connectionString": "[concat('HostName=', reference(parameters('iotHubId')).hostName, ';SharedAccessKeyName=', variables('iotHubKeyName'), ';SharedAccessKey=', listkeys(parameters('iotHubKeysId'), '2020-03-01').primaryKey)]",
-                        "location": "[resourceGroup().location]",
-                        "name": "[reference(parameters('iotHubId')).hostName]"
-                    }
-                ]
-            }
+            "properties": {}
         }
     ]
 }
