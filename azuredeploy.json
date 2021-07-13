@@ -5,52 +5,89 @@
         "hub_name": {
             "type": "string"
         },
-        "sku_name": {
+        "hub_sku_name": {
             "type": "string",
             "defaultValue": "S1"
         },
+        "hub_sku_units": {
+            "type": "string",
+            "defaultValue": "1"
+        },
+        "hub_d2c_partitions": {
+            "type": "string",
+            "defaultValue": "4"
+        },
+        "hub_features": {
+            "type": "string",
+            "defaultValue": "None"
+        },
+        "hub_tags": {
+            "type": "Object",
+            "defaultValue": {}
+        },
         "dps_name": {
             "type": "string"
+        },
+        "dps_tags": {
+            "type": "Object",
+            "defaultValue": {}
         }
-    },
-    "variables": {
-        "linked-template-iot-hub": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/iot-hub.json",
-        "linked-template-dps": "https://raw.githubusercontent.com/jevgenij-p/asset-tracking/master/dps.json"
     },
     "resources": [
         {
-            "name": "iothub",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2019-10-01",
+            "apiVersion": "2021-03-31",
+            "type": "Microsoft.Devices/IotHubs",
+            "name": "[parameters('hub_name')]",
+            "location": "[resourceGroup().location]",
             "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('linked-template-iot-hub')]",
-                    "contentVersion": "1.0.0.0"
+                "eventHubEndpoints": {
+                    "events": {
+                        "retentionTimeInDays": 1,
+                        "partitionCount": "[parameters('hub_d2c_partitions')]"
+                    }
                 },
-                "parameters": {
-                    "hub_name": { "value": "[parameters('hub_name')]" },
-                    "sku_name": { "value": "[parameters('sku_name')]" }
-                }
-            }
+                "features": "[parameters('hub_features')]"
+            },
+            "sku": {
+                "name": "[parameters('hub_sku_name')]",
+                "capacity": "[parameters('hub_sku_units')]"
+            },
+            "tags": "[parameters('hub_tags')]"
         },
         {
-            "name": "dps",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2019-10-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Resources/deployments','iothub')]"
-            ],
+            "type": "Microsoft.Security/IoTSecuritySolutions",
+            "apiVersion": "2019-08-01",
+            "name": "[parameters('hub_name')]",
+            "location": "[resourceGroup().location]",
             "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('linked-template-dps')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "dpsname": { "value": "[parameters('dps_name')]" }
-                }
-            }
+                "status": "Enabled",
+                "unmaskedIpLoggingStatus": "Enabled",
+                "displayName": "[parameters('hub_name')]",
+                "iotHubs": [
+                    "[resourceId('Microsoft.Devices/IotHubs', parameters('hub_name'))]"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Devices/IotHubs', parameters('hub_name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Devices/ProvisioningServices",
+            "apiVersion": "2020-03-01",
+            "name": "[parameters('dps_name')]",
+            "location": "[resourceGroup().location]",
+            "tags": "[parameters('dps_tags')]",
+            "sku": {
+                "name": "S1",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "properties": {
+                
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Devices/IotHubs', parameters('hub_name'))]"
+            ]
         }
     ],
     "outputs": {}
