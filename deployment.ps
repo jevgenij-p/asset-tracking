@@ -11,8 +11,39 @@ $hubName="asset-tracking-hub"
 $dpsName="asset-tracking-dps"
 $skuName="S1"
 
+# Create IoT Hub and DPS service
+
 az deployment group create `
     --name $deploymentName `
     --resource-group $resourceGroupName `
     --template-file $templateFile `
     --parameters hub_name=$hubName hub_sku_name=$skuName dps_name=$dpsName
+
+# Create primary and secondary keys
+
+$maxLength=32
+$randomString=-join (((33..126)) * 100 | Get-Random -Count $maxLength | %{[char]$_})
+$bytes=[System.Text.Encoding]::Unicode.GetBytes($randomString)
+$primaryKey=[Convert]::ToBase64String($Bytes)
+
+$randomString=-join (((33..126)) * 100 | Get-Random -Count $maxLength | %{[char]$_})
+$bytes=[System.Text.Encoding]::Unicode.GetBytes($randomString)
+$secondaryKey=[Convert]::ToBase64String($Bytes)
+
+# DPS Enrollment Group name
+$enrollmentId="AssetTrackers"
+
+# Create DPS Enrollment Group
+
+az iot dps enrollment-group create `
+    -g $resourceGroupName `
+    --dps-name $dpsName `
+    --enrollment-id $enrollmentId `
+    --primary-key $primaryKey `
+    --secondary-key $secondaryKey
+
+$dpsJson=$(az iot dps show --name $dpsName --resource-group $resourceGroupName)
+$dps=$dpsJson | ConvertFrom-Json
+
+# DPS ID Scope
+$idScope=$dps.properties.idScope
