@@ -1,3 +1,5 @@
+. ".\functions.ps1"
+
 az login
 
 # Allow installing extensions without prompt
@@ -8,60 +10,67 @@ $principalObjectId=$(az ad signed-in-user show --query objectId --output tsv)
 
 $resourceGroup="asset-tracking-rg"
 $location="northeurope"
-
-# Create a resource group
-az group create --name $resourceGroup --location $location
-
-$templateFile="azuredeploy.json"
-$today=Get-Date -Format "MM-dd-yyyy"
-$deploymentName="addiothub-"+"$today"
-
 $iotHub="asset-tracking-hub"
+$iotHubSku="S1"
 $iotHubSharedAccessPolicy="iothubowner"
-$dpsName="asset-tracking-dps"
-$skuName="S1"
 
 
 #----------------------------------------------------------------------------------------------------
-# Create an IoT Hub and DPS service
-# See: https://docs.microsoft.com/en-us/azure/iot-dps/quick-setup-auto-provision#create-an-iot-hub
-#      https://docs.microsoft.com/en-us/cli/azure/deployment/group?view=azure-cli-latest#az_deployment_group_create
+# Create a resource group
+az group create --name $resourceGroup --location $location
 
-az deployment group create `
-    --name $deploymentName `
+#----------------------------------------------------------------------------------------------------
+# Create an IoT Hub
+# See: https://docs.microsoft.com/en-us/azure/iot-dps/quick-setup-auto-provision#create-an-iot-hub
+#      https://docs.microsoft.com/en-us/cli/azure/iot/hub?view=azure-cli-latest#az_iot_hub_create
+
+az iot hub create `
+    --name $iotHub `
     --resource-group $resourceGroup `
-    --template-file $templateFile `
-    --parameters hub_name=$iotHub hub_sku_name=$skuName dps_name=$dpsName
+    --location $location `
+    --sku $iotHubSku
+
+$iotHubConnection=$(az iot hub connection-string show -n $iotHub --output tsv)
+
+#----------------------------------------------------------------------------------------------------
+# Create an Azure IoT Hub device provisioning service (DPS)
+# See: https://docs.microsoft.com/en-us/cli/azure/iot/dps?view=azure-cli-latest#az_iot_dps_create
+
+$dps="asset-tracking-dps"
+$dpsSku="S1"
+
+az iot dps create `
+    --name $dps `
+    --resource-group $resourceGroup `
+    --location $location `
+    --sku $dpsSku
+
+az iot dps linked-hub create `
+    --dps-name $dps `
+    --resource-group $resourceGroup `
+    --location $location `
+    --connection-string $iotHubConnection
+
+#----------------------------------------------------------------------------------------------------
+# Create DPS Enrollment Group
+# See: https://docs.microsoft.com/en-us/cli/azure/iot/dps/enrollment-group?view=azure-cli-latest#az_iot_dps_enrollment_group_create
 
 # Create primary and secondary keys
-
-$maxLength=32
-$randomString=-join (((33..126)) * 100 | Get-Random -Count $maxLength | %{[char]$_})
-$bytes=[System.Text.Encoding]::Unicode.GetBytes($randomString)
-$primaryKey=[Convert]::ToBase64String($Bytes)
-
-$randomString=-join (((33..126)) * 100 | Get-Random -Count $maxLength | %{[char]$_})
-$bytes=[System.Text.Encoding]::Unicode.GetBytes($randomString)
-$secondaryKey=[Convert]::ToBase64String($Bytes)
+$primaryKey=Get-RandomKey
+$secondaryKey=Get-RandomKey
 
 # DPS Enrollment Group name
 $enrollmentId="AssetTrackers"
 
-# Create DPS Enrollment Group
-# See: https://docs.microsoft.com/en-us/cli/azure/iot/dps/enrollment-group?view=azure-cli-latest#az_iot_dps_enrollment_group_create
-
 az iot dps enrollment-group create `
     -g $resourceGroup `
-    --dps-name $dpsName `
+    --dps-name $dps `
     --enrollment-id $enrollmentId `
     --primary-key $primaryKey `
     --secondary-key $secondaryKey
 
-$dpsJson=$(az iot dps show --name $dpsName --resource-group $resourceGroup)
-$dps=$dpsJson | ConvertFrom-Json
-
-# Read a DPS ID Scope
-$idScope=$dps.properties.idScope
+# Read DPS ID Scope
+$idScope=$(az iot dps show --name $dps --resource-group $resourceGroup --query properties.idScope --output tsv)
 
 
 #----------------------------------------------------------------------------------------------------
@@ -69,10 +78,8 @@ $idScope=$dps.properties.idScope
 # See: https://docs.microsoft.com/en-us/azure/time-series-insights/how-to-create-environment-using-cli
 
 # Create an Azure storage account for tsi environment's cold store
-$maxLength=16
 
-# lowercase letters and numbers only
-$randomString=-join (((48..57)+(97..122)) * 100 | Get-Random -Count $maxLength | %{[char]$_})
+$randomString=Get-RandomLowercaseAndNumbers 16
 $tsiStorage="storage"+$randomString
 
 az storage account create -g $resourceGroup -n $tsiStorage --https-only
