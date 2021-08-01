@@ -17,3 +17,9 @@ function Get-RandomLowercaseAndNumbers {
     $randomString=-join (((48..57)+(97..122)) * 100 | Get-Random -Count $length | %{[char]$_})
     return $randomString
 }
+function Get-RandomNumbers {
+    Param([int]$length)
+
+    $randomString=-join (((48..57)) * 100 | Get-Random -Count $length | %{[char]$_})
+    return $randomString
+}

@@ -1,3 +1,9 @@
+#
+# Deployment script creating an IoT Hub, Device Provisioning Service,
+# and Time Series Insights.
+# Run it using the command: pwsh .\deployment.ps
+#
+
 . ".\functions.ps1"
 
 az login
@@ -30,7 +36,15 @@ az iot hub create `
     --location $location `
     --sku $iotHubSku
 
+# Read IoT Hub connection string
 $iotHubConnection=$(az iot hub connection-string show -n $iotHub --output tsv)
+
+# Read the "iothubowner" Shared Access Policy key of the IoT Hub
+$iotHubPolicySharedAccessKey=$(az iot hub policy show --hub-name $iotHub --name $iotHubSharedAccessPolicy --query primaryKey --output tsv)
+
+# Read IoT Hub resource id
+$iotHubResourceId=$(az iot hub show --name $iotHub --query id --output tsv)
+
 
 #----------------------------------------------------------------------------------------------------
 # Create an Azure IoT Hub device provisioning service (DPS)
@@ -83,8 +97,9 @@ $randomString=Get-RandomLowercaseAndNumbers 16
 $tsiStorage="storage"+$randomString
 
 az storage account create -g $resourceGroup -n $tsiStorage --https-only
-$key=$(az storage account keys list -g $resourceGroup -n $tsiStorage --query [0].value --output tsv)
+$storageKey=$(az storage account keys list -g $resourceGroup -n $tsiStorage --query [0].value --output tsv)
 
+#----------------------------------------------------------------------------------------------------
 # Create the Azure Time Series Insights Environment
 # See: https://docs.microsoft.com/en-us/cli/azure/tsi/environment/gen2?view=azure-cli-latest#az_tsi_environment_gen2_create
 
@@ -99,22 +114,14 @@ az tsi environment gen2 create `
     --sku name=$tsiSkuName capacity=1 `
     --time-series-id-properties name=$tsiPropertyId type=String `
     --warm-store-configuration data-retention=P7D `
-    --storage-configuration account-name=$tsiStorage management-key=$key
+    --storage-configuration account-name=$tsiStorage management-key=$storageKey
 
+#----------------------------------------------------------------------------------------------------
 # Create an event source under the specified environmen
 # See: https://docs.microsoft.com/en-us/cli/azure/tsi/event-source/iothub?view=azure-cli-latest
 
-# Read the "iothubowner" Shared Access Policy key of the IoT Hub
-# See: https://docs.microsoft.com/en-us/cli/azure/iot/hub/policy?view=azure-cli-latest#az_iot_hub_policy_show
-
-$policySharedAccessKey=$(az iot hub policy show --hub-name $iotHub --name $iotHubSharedAccessPolicy --query primaryKey --output tsv)
-
-# Read IoT Hub resource id
-$resourceId=$(az iot hub show --name $iotHub --query id --output tsv)
-
 $eventSourceName="ioteventsource"
-$consumerGroupName="iothubgroup"
-$eventSourceKeyName=$iotHubSharedAccessPolicy
+$consumerGroupName="`$Default"
 
 az tsi event-source iothub create `
     -g $resourceGroup `
@@ -123,10 +130,11 @@ az tsi event-source iothub create `
     --consumer-group-name $consumerGroupName `
     --iot-hub-name $iotHub `
     --location $location `
-    --key-name $eventSourceKeyName `
-    --shared-access-key $policySharedAccessKey `
-    --event-source-resource-id $resourceId
+    --key-name $iotHubSharedAccessPolicy `
+    --shared-access-key $iotHubPolicySharedAccessKey `
+    --event-source-resource-id $iotHubResourceId
 
+#----------------------------------------------------------------------------------------------------
 # Create a data access policy granting access to the signed in user
 # See: https://docs.microsoft.com/en-us/cli/azure/tsi/access-policy?view=azure-cli-latest
 
@@ -137,3 +145,10 @@ az tsi access-policy create `
     --principal-object-id $principalObjectId `
     --roles Reader Contributor `
     --resource-group $resourceGroup
+
+
+"`r`n--------------------------------------------------"
+"`r`nSave the following properties:"
+"`r`nDPS ID Scope: " + $idScope
+"DPS Primary Key: " + $primaryKey
+"Device ID: mxchip00001`r`n"
