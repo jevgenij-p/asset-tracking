@@ -19,6 +19,7 @@ $location="northeurope"
 $iotHub="asset-tracking-hub"
 $iotHubSku="S1"
 $iotHubSharedAccessPolicy="iothubowner"
+$iotHubAsaConsumerGroup="asaConsumerGroup"
 
 
 #----------------------------------------------------------------------------------------------------
@@ -35,6 +36,14 @@ az iot hub create `
     --resource-group $resourceGroup `
     --location $location `
     --sku $iotHubSku
+
+# Create an event hub consumer group for Azure Stream Analytics input
+# See: https://docs.microsoft.com/en-us/cli/azure/iot/hub/consumer-group?view=azure-cli-latest#az_iot_hub_consumer_group_create
+
+az iot hub consumer-group create `
+    --hub-name $iotHub `
+    --name $iotHubAsaConsumerGroup
+
 
 # Read IoT Hub connection string
 $iotHubConnection=$(az iot hub connection-string show -n $iotHub --output tsv)
@@ -117,7 +126,7 @@ az tsi environment gen2 create `
     --storage-configuration account-name=$tsiStorage management-key=$storageKey
 
 #----------------------------------------------------------------------------------------------------
-# Create an event source under the specified environmen
+# Create an event source under the Azure Time Series Insights Environment
 # See: https://docs.microsoft.com/en-us/cli/azure/tsi/event-source/iothub?view=azure-cli-latest
 
 $eventSourceName="ioteventsource"
@@ -145,6 +154,52 @@ az tsi access-policy create `
     --principal-object-id $principalObjectId `
     --roles Reader Contributor `
     --resource-group $resourceGroup
+
+
+#----------------------------------------------------------------------------------------------------
+# Create a Stream Analytics job
+# See: https://docs.microsoft.com/en-us/cli/azure/stream-analytics/job?view=azure-cli-latest#az_stream_analytics_job_create
+
+$streamJob="streamjob"
+
+az stream-analytics job create `
+    --name $streamJob `
+    --resource-group $resourceGroup `
+    --location $location 
+
+#----------------------------------------------------------------------------------------------------
+# Create an input for the Stream Analytics job
+# See: https://docs.microsoft.com/en-us/cli/azure/stream-analytics/input?view=azure-cli-latest#az_stream_analytics_input_create
+
+$datasource=@"
+{
+    'type': 'Microsoft.Devices/IotHubs',
+    'properties': {
+        'iotHubNamespace': \"$iotHub\",
+        'sharedAccessPolicyName': \"$iotHubSharedAccessPolicy\",
+        'sharedAccessPolicyKey': \"$iotHubPolicySharedAccessKey\",
+        'consumerGroupName': \"$iotHubAsaConsumerGroup\",
+        'endpoint': 'messages/events'
+        }
+}
+"@.Replace("'",'\"').Replace("`n",'')
+
+$serialization=@"
+{
+    'type': 'Json',
+    'properties': {
+        'encoding': 'UTF8'
+    }
+}
+"@.Replace("'",'\"').Replace("`n",'')
+
+az stream-analytics input create `
+    --resource-group $resourceGroup `
+    --job-name $streamJob `
+    --name input `
+    --type Stream `
+    --datasource $datasource `
+    --serialization $serialization
 
 
 "`r`n--------------------------------------------------"
