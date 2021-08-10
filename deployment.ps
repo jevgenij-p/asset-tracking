@@ -201,8 +201,77 @@ az stream-analytics input create `
     --datasource $datasource `
     --serialization $serialization
 
+#---------------------------------------------------------------------------------------------------
+# Create an output for the Stream Analytics job
+# See: https://docs.microsoft.com/en-us/cli/azure/stream-analytics/output?view=azure-cli-latest#az_stream_analytics_output_create
 
-"`r`n--------------------------------------------------"
+# Create an Event Hub as the output
+# See: https://docs.microsoft.com/en-us/cli/azure/eventhubs/namespace?view=azure-cli-latest#az_eventhubs_namespace_create
+#      https://docs.microsoft.com/en-us/cli/azure/eventhubs/eventhub?view=azure-cli-latest#az_eventhubs_eventhub_create
+#      https://docs.microsoft.com/en-us/cli/azure/eventhubs/namespace/authorization-rule?view=azure-cli-latest#az_eventhubs_namespace_authorization_rule_create
+#      https://docs.microsoft.com/en-us/cli/azure/stream-analytics/job?view=azure-cli-latest#az_stream_analytics_job_create
+
+$randomString=Get-RandomLowercaseAndNumbers 16
+$eventHubsNamespace="ehns"+$randomString
+$eventHubName="asaeventhub"
+$eventHubSharedAccessPolicy="eventHubSharedAccessPolicy"
+
+az eventhubs namespace create `
+    --resource-group $resourceGroup `
+    --name $eventHubsNamespace `
+    --location $location `
+    --sku Standard
+
+az eventhubs eventhub create `
+    --resource-group $resourceGroup `
+    --namespace-name $eventHubsNamespace `
+    --name $eventHubName `
+    --message-retention 1
+
+az eventhubs namespace authorization-rule create `
+    --resource-group $resourceGroup `
+    --namespace-name $eventHubsNamespace `
+    --name $eventHubSharedAccessPolicy `
+    --rights Manage Send Listen
+
+az eventhubs namespace authorization-rule show `
+    --resource-group $resourceGroup `
+    --namespace-name $eventHubsNamespace `
+    --name $eventHubSharedAccessPolicy
+
+$eventHubSharedAccessPolicyKey=$(az eventhubs namespace authorization-rule keys list --resource-group $resourceGroup --namespace-name $eventHubsNamespace --name $eventHubSharedAccessPolicy --query primaryKey --output tsv)
+
+$datasource=@"
+{
+    'type': 'Microsoft.ServiceBus/EventHub',
+    'properties': {
+        'serviceBusNamespace': \"$eventHubsNamespace\",
+        'sharedAccessPolicyName': \"$eventHubSharedAccessPolicy\",
+        'sharedAccessPolicyKey': \"$eventHubSharedAccessPolicyKey\",
+        'eventHubName': \"$eventHubName\"
+        }
+}
+"@.Replace("'",'\"').Replace("`n",'')
+
+$serialization=@"
+{
+    'type': 'Json',
+    'properties': {
+        'encoding': 'UTF8',
+        'format': 'Array'
+    }
+}
+"@.Replace("'",'\"').Replace("`n",'')
+
+az stream-analytics output create `
+    --resource-group $resourceGroup `
+    --job-name $streamJob `
+    --name output `
+    --datasource $datasource `
+    --serialization $serialization
+
+
+"`r`n=================================================="
 "`r`nSave the following properties:"
 "`r`nDPS ID Scope: " + $idScope
 "DPS Primary Key: " + $primaryKey
