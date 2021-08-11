@@ -8,6 +8,8 @@
 
 az login
 
+$startTime = $(get-date)
+
 # Allow installing extensions without prompt
 az config set extension.use_dynamic_install=yes_without_prompt
 
@@ -270,8 +272,68 @@ az stream-analytics output create `
     --datasource $datasource `
     --serialization $serialization
 
+# Create a query
+# See: https://docs.microsoft.com/en-us/cli/azure/stream-analytics/transformation?view=azure-cli-latest#az_stream_analytics_transformation_create
+
+$query=@"
+WITH AnomalyDetectionStep AS
+(
+    SELECT
+        IoTHub.ConnectionDeviceId AS id,
+        EventEnqueuedUtcTime AS time,
+        CAST(temperature AS float) AS temp,
+        AnomalyDetection_SpikeAndDip(CAST(temperature AS float), 94, 240, 'spikesanddips')
+            OVER(PARTITION BY id LIMIT DURATION(second, 1200)) AS SpikeAndDipScores
+    FROM input
+    WHERE temperature IS NOT NULL
+)
+SELECT
+    id AS 'iothub-connection-device-id',
+    time,
+    CAST(GetRecordPropertyValue(SpikeAndDipScores, 'IsAnomaly') AS bigint) as temperature_anomaly,
+    CAST(GetRecordPropertyValue(SpikeAndDipScores, 'Score') AS float) AS temperature_anomaly_score
+INTO output
+FROM AnomalyDetectionStep
+"@
+$query=$query -replace "`n"," "
+$query=$query -replace "\s+"," "
+
+az stream-analytics transformation create `
+    --resource-group $resourceGroup `
+    --job-name $streamJob `
+    --name query `
+    --transformation-query $query
+
+# Start a streaming job
+az stream-analytics job start --resource-group $resourceGroup --name $streamJob
+
+
+#----------------------------------------------------------------------------------------------------
+# Add an Event Hub as an event source under the Azure Time Series Insights Environment
+# See: https://docs.microsoft.com/en-us/cli/azure/tsi/event-source/eventhub?view=azure-cli-latest
+
+$eventSourecName="eventhubeventsource"
+$consumerGroupName="`$Default"
+
+<#
+az tsi event-source eventhub create `
+    --resource-group $resourceGroup `
+    --environment-name $tsiEnvName`
+    --consumer-group-name $consumerGroupName `
+    --namespace $eventHubsNamespace `
+    --event-hub-name $eventHubName `
+    --event-source-name $eventSourecName `
+    --event-source-resource-id `
+    --location $location `
+    --key-name `
+    --shared-access-key
+#>
+
+$elapsedTime = $(get-date) - $startTime
+$totalTime = "{0:HH:mm:ss}" -f ([datetime]$elapsedTime.Ticks)
 
 "`r`n=================================================="
+"`r`nTotal elapsed time: " + $totalTime + "`r`n"
 "`r`nSave the following properties:"
 "`r`nDPS ID Scope: " + $idScope
 "DPS Primary Key: " + $primaryKey
